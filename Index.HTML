@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>사자의 턱 디지털 시트 - 복원 완료</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Noto Sans KR', sans-serif; background: #f0f0f0; display: flex; justify-content: center; padding: 10px; margin: 0; }
+        .sheet { width: 100%; max-width: 600px; background: white; padding: 20px; border: 2px solid #333; box-shadow: 10px 10px 0px #444; }
+        h2 { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-top: 0; font-size: 20px; }
+        .slot-bar { display: flex; gap: 5px; margin-bottom: 15px; background: #eee; padding: 10px; border-radius: 5px; flex-wrap: wrap; align-items: center; }
+        .slot-bar select { flex: 1; min-width: 100px; height: 40px; padding: 5px 10px; font-size: 14px; border: 1px solid #bbb; border-radius: 3px; background-color: white; }
+        .btn-sm { padding: 0 10px; height: 40px; font-size: 11px; background: #444; color: white; border: none; cursor: pointer; border-radius: 3px; white-space: nowrap; }
+        .btn-del { background: #e74c3c; }
+        .btn-unlock { background: #e67e22 !important; }
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; width: 100%; }
+        .stat-item { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+        .stat-item label { font-weight: bold; font-size: 12px; color: #666; }
+        input, .job-select { width: 100%; padding: 10px; border: 1px solid #bbb; border-radius: 3px; font-size: 14px; height: 40px; background-color: white; }
+        input[readonly] { background-color: #f9f9f9; }
+        .sect { background: #444; color: white; padding: 4px 10px; margin: 15px 0 8px; font-weight: bold; font-size: 13px; }
+        .sect-share { background: #d35400; } 
+
+        /* 구매 선택 모달 스타일 */
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1000; }
+.modal-content { background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 320px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+.modal-title { font-weight: bold; margin-bottom: 15px; font-size: 16px; line-height: 1.4; }
+.modal-btns { display: flex; flex-direction: column; gap: 8px; }
+.btn-modal { width: 100%; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: bold; }
+.btn-buy { background: #e74c3c; color: white; }
+.btn-reward { background: #27ae60; color: white; }
+.btn-cancel { background: #95a5a6; color: white; }
+
+/* 인벤토리 스타일 */
+.inventory-container { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; padding: 10px; background: #f9f9f9; border: 1px solid #ccc; border-radius: 5px; }
+.inv-item { background: #fff; border: 1px solid #333; padding: 4px 8px; font-size: 11px; display: flex; align-items: center; gap: 4px; border-radius: 3px; }
+.inv-item b { color: #bc6c25; }
+.inv-btn { cursor: pointer; border: none; background: #eee; padding: 2px 4px; border-radius: 2px; font-size: 10px; }
+.inv-btn:hover { background: #ddd; }
+.btn-trade { color: #2980b9; } /* 거래 아이콘 색상 */
+.btn-sell { color: #c0392b; }  /* 판매 아이콘 색상 */
+
+/* 소유주 배지 스타일 */
+.stock-owner-line { 
+    display: flex; 
+    align-items: center; 
+    gap: 4px; 
+    font-size: 10px; 
+    color: #888; 
+    border-top: 1px dotted #eee;
+    padding-top: 4px;
+}
+
+.owner-tag-group { display: flex; gap: 2px; align-items: center; }
+.owner-tag { 
+    font-size: 9px; padding: 1px 3px; border-radius: 2px; 
+    color: white; font-weight: bold; line-height: 1;
+}
+/* 직업별 고유 색상 */
+.tag-도끼 { background-color: #e67e22; }
+.tag-적위 { background-color: #e74c3c; }
+.tag-철거 { background-color: #795548; }
+.tag-공허 { background-color: #8e44ad; }
+
+        /* 특혜(Perks) 디자인 복원 */
+        .perk-item { display: flex; gap: 10px; font-size: 12px; margin-bottom: 6px; border-bottom: 1px solid #f2f2f2; padding-bottom: 3px; align-items: flex-start; word-break: keep-all; }
+        .chk-group { display: flex; gap: 3px; min-width: 55px; flex-shrink: 0; padding-top: 2px; }
+        .p-chk, .circle-chk { border: 1px solid #333; appearance: none; cursor: pointer; background: white; width: 16px; height: 16px; position: relative; flex-shrink: 0; }
+        .circle-chk { border-radius: 50%; width: 18px; height: 18px; }
+        .p-chk:checked::after, .circle-chk:checked::after { content: "✔"; color: #333; font-size: 14px; position: absolute; left: 0px; top: -3px; font-weight: bold; }
+        
+        /* 아이콘 디자인 복원 */
+        .icon { font-weight: bold; padding: 1px 3px; border-radius: 3px; color: white; font-size: 10px; margin: 0 1px; vertical-align: middle; }
+        .fire { background: #e67e22; } .light { background: #f1c40f; color: #333; } .earth { background: #795548; }
+        .dark { background: #2c3e50; } .air { background: #3498db; } .ice { background: #74b9ff; }
+        .status { background: #8e44ad; } .heal { background: #27ae60; } .shield { background: #7f8c8d; }
+        .poison { background: #2ecc71; } .wound { background: #e74c3c; } .immob { background: #f39c12; } .curse { background: #333; }
+        
+        /* 아이템 상점 디자인 */
+        .shop-container { 
+    display: grid; 
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); 
+    gap: 8px; 
+    max-height: 250px; /* 높이를 조금 더 확보 */
+    overflow-y: auto; 
+    padding: 10px; 
+    background: #fdf6e3; 
+    border: 1px inset #ccc; 
+    border-radius: 5px; 
+}
+.shop-item { 
+    background: white; 
+    border: 1px solid #d4a373; 
+    border-radius: 4px; 
+    padding: 8px 6px; 
+    font-size: 11px; 
+    cursor: pointer; 
+    text-align: left; /* 왼쪽 정렬 */
+    position: relative; 
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+        .shop-item b { color: #bc6c25; font-size: 12px; margin-bottom: 2px; }
+.shop-item .price { color: #e74c3c; font-weight: bold; margin-bottom: 4px; }
+        .shop-item .price { color: #e74c3c; font-weight: bold; }
+        .shop-item .stock { font-size: 9px; color: #888; }
+        .shop-item.sold-out { background: #eee; opacity: 0.6; cursor: not-allowed; }
+        .sold-out-badge { color: white; background: #e74c3c; font-size: 9px; padding: 1px 3px; border-radius: 3px; position: absolute; top: 2px; right: 2px; }
+
+        textarea { width: 100%; height: 80px; margin-top: 5px; border: 1px solid #ccc; padding: 8px; font-size: 12px; resize: vertical; }
+        .backup-bar { display: flex; gap: 5px; margin-top: 15px; border-top: 1px solid #ddd; padding-top: 10px; }
+    </style>
+</head>
+<body>
+<div class="sheet">
+    <h2 id="title">직업 시트 (연결 중...)</h2>
+    <div class="slot-bar">
+        <select id="slotSelect" onchange="switchSlot(this.value)"></select>
+        <button class="btn-sm" onclick="addNewParty()">+ 파티</button>
+        <button class="btn-sm btn-del" onclick="deleteParty()">삭제</button>
+        <button class="btn-sm" onclick="manualReset()">초기화</button>
+    </div>
+
+    <div class="stat-item" style="margin-bottom:10px;">
+        <label>직업 선택</label>
+        <select id="job" class="job-select" onchange="changeJob(this.value)">
+            <option value="도끼투척수">이녹스 도끼투척수</option>
+            <option value="적위병">발라스 적위병</option>
+            <option value="철거전문가">쿼트릴 철거전문가</option>
+            <option value="공허감시자">인간 공허감시자</option>
+        </select>
+    </div>
+
+    <div class="stat-grid">
+        <div class="stat-item"><label>캐릭터 이름</label><input type="text" id="charName"></div>
+        <div class="stat-item"><label>레벨 (Lv) - 자동</label><input type="number" id="lv" readonly></div>
+        <div class="stat-item"><label>경험치 (XP)</label><input type="number" id="xp" oninput="calcLevel()"></div>
+        <div class="stat-item"><label>골드 (Gold)</label><input type="number" id="gold"></div>
+    </div>
+
+    <div class="sect">특혜 (PERKS)</div>
+    <div id="perks"></div>
+
+    <div class="sect">체크마크 (BATTLE GOALS)</div>
+    <div id="battleGoals" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;"></div>
+    <div class="sect">🎒 내 인벤토리 (자동 정렬)</div>
+    <div id="inventoryGrid" class="inventory-container"></div>
+    <div class="sect">🛒 아이템 상점 (클릭하여 구매)</div>
+    <div id="shopGrid" class="shop-container"></div>
+    <div style="margin-bottom:10px; display:flex; gap:5px; align-items:center;">
+        <label style="font-size:11px; font-weight:bold;">🔓 해금:</label>
+        <input type="text" id="unlockInput" placeholder="예: 15 또는 14-25" style="width:120px; height:30px;">
+        <button class="btn-sm btn-unlock" style="height:30px;" onclick="unlockItems()">해금</button>
+    </div>
+    <textarea id="memo" placeholder="구입한 아이템 및 개인 메모..."></textarea>
+
+    <div class="sect sect-share">시나리오 및 맵 진행 상황 (파티 공유)</div>
+    <textarea id="mapProgress"></textarea>
+
+    <div class="backup-bar">
+        <button class="btn-sm" style="flex:1; background:#27ae60" onclick="exportData()">파일 백업</button>
+        <button class="btn-sm" style="flex:1; background:#2980b9" onclick="document.getElementById('fileInput').click()">파일 복구</button>
+        <input type="file" id="fileInput" style="display:none" onchange="importData(this)">
+    </div>
+
+    <div id="buyModal" class="modal-overlay">
+    <div class="modal-content">
+        <div id="modalTitle" class="modal-title">아이템 획득</div>
+        <div class="modal-btns">
+            <button id="btnBuy" class="btn-modal btn-buy">골드로 구매</button>
+            <button id="btnReward" class="btn-modal btn-reward">시나리오 보상 (0G)</button>
+            <button onclick="closeModal()" class="btn-modal btn-cancel">취소</button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyDRkc05Xyt_FKn2PcuWnSy58On4WE9dlV0",
+        authDomain: "pangea-49c0b.firebaseapp.com",
+        databaseURL: "https://pangea-49c0b-default-rtdb.firebaseio.com",
+        projectId: "pangea-49c0b",
+        storageBucket: "pangea-49c0b.firebasestorage.app",
+        messagingSenderId: "793854305747",
+        appId: "1:793854305747:web:aff5c62af396dcb2cbbb26"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const itemDB = {
+        1:["머리","독수리 눈 고글",30,2], 2:["머리","철 투구",20,2], 3:["몸","쇠사슬 갑옷",30,2], 4:["몸","징 박은 가죽 갑옷",25,2], 5:["다리","낡은 장화",15,2], 6:["다리","날개 달린 신발",15,2], 7:["한손","다리미꼴 방패",20,2], 8:["한손","투척용 망치",30,2], 9:["한손","독 단검",20,2], 10:["한손","강철 창",20,2], 11:["소모품","치료 물약",10,2], 12:["소모품","활력 물약",10,2], 13:["소모품","힘 물약",10,2], 14:["소모품","마나 물약",10,2], 15:["소모품","생명의 부적",20,1], 16:["몸","초혼의 로브",40,1], 17:["다리","편안한 신발",30,1], 18:["한손","전투 도끼",25,1], 19:["한손","검은 양초",40,1], 20:["소모품","기절 가루",20,2], 21:["머리","송골매 투구",20,1], 22:["몸","날붙이 갑옷",45,1], 23:["다리","활보의 장화",30,1], 24:["소모품","휘발성 폭탄",40,1], 25:["한손","가시 돋친 사슬",30,1], 26:["소모품","떡갈나무 부적",30,2], 27:["소모품","운명 나침반",25,1], 28:["몸","벼룩투성이 숄",10,1], 29:["한손","대형 방패",40,1], 30:["소모품","신속의 반지",40,1], 31:["소모품","힘의 반지",40,1], 32:["소모품","회복의 반지",40,1], 33:["소모품","강철 반지",30,1], 34:["한손","가시 돋친 도끼",40,1], 35:["몸","명령의 로브",40,1], 36:["다리","제트 장화",30,1]
+    };
+
+    const D = {
+        "도끼투척수": [{n:2, t:"'-1' 카드 2장을 제거"}, {n:1, t:"'0' 카드 1장을 '+2 <span class='icon status'>혼란</span>' 카드 1장으로 교체"}, {n:1, t:"'0' 카드 1장을 '+1 <span class='icon poison'>중독</span>' 카드 1장으로 교체"}, {n:1, t:"'0' 카드 1장을 '+1 <span class='icon wound'>부상</span>' 카드 1장으로 교체"}, {n:1, t:"'0' 카드 1장을 '+1 <span class='icon immob'>이동불가</span>' 카드 1장으로 교체"}, {n:1, t:"'0' 카드 1장을 '+1 [밀기 2]' 카드 1장으로 교체"}, {n:1, t:"'0' 카드 1장을 '+0 <span class='icon status'>기절</span>' 카드 1장으로 교체"}, {n:1, t:"'+1' 카드 1장을 '+1 <span class='icon status'>기절</span>' 카드 1장으로 교체"}, {n:3, t:"'+2 <span class='icon air'>공기</span>' 카드 1장을 추가"}, {n:3, t:"'+1' 카드 1장을 '+3' 카드 1장으로 교체"}],
+        "적위병": [{n:1, t:"'0' 카드 4장을 제거"}, {n:1, t:"'-1' 카드 2장을 제거"}, {n:1, t:"'-2' 카드 1장 및 '+1' 카드 1장을 제거"}, {n:2, t:"'-1' 카드 1장을 '+1' 카드 1장으로 교체"}, {n:2, t:"'+1' 카드 1장을 '+2 <span class='icon fire'>불</span>' 카드 1장으로 교체"}, {n:2, t:"'+1' 카드 1장을 '+2 <span class='icon light'>빛</span>' 카드 1장으로 교체"}, {n:2, t:"'+1 <span class='icon fire'>불</span>,<span class='icon fire'>빛</span>' 카드 1장을 추가"}, {n:2, t:"'+1 [방어 1] <span class='icon shield'>🛡️</span>' 카드 1장을 추가"}, {n:1, t:"'0' 카드 1장을 '+1 <span class='icon immob'>이동불가</span>' 카드 1장으로 교체"}, {n:1, t:"'0' 카드 1장을 '+1 <span class='icon wound'>부상</span>' 카드 1장으로 교체"}],
+        "철거전문가": [{n:1, t:"'0' 카드 4장을 제거"}, {n:2, t:"'-1' 카드 2장을 제거"}, {n:1, t:"'-2' 카드 1장 및 '+1' 카드 1장을 제거"}, {n:2, t:"'0' 카드 1장을 '+2 <span class='icon status'>혼란</span>' 카드 1장으로 교체"}, {n:2, t:"'-1' 카드 1장을 '+0 <span class='icon poison'>중독</span>' 카드 1장으로 교체"}, {n:2, t:"'+2' 카드 1장을 추가"}, {n:2, t:"'+1' 카드 1장을 '+2 <span class='icon earth'>땅</span>' 카드 1장으로 교체"}, {n:2, t:"'+1' 카드 1장을 '+2 <span class='icon fire'>불</span>' 카드 1장으로 교체"}, {n:2, t:"'0' 인접한 모든 적 피해 1 카드 1장 추가"}],
+        "공허감시자": [{n:1, t:"'-1' 카드 2장을 제거"}, {n:1, t:"'-2' 카드 1장을 제거"}, {n:2, t:"'0' 카드 1장을 '+1 <span class='icon dark'>어둠</span>' 카드 1장으로 교체"}, {n:2, t:"'0' 카드 1장을 '+1 <span class='icon ice'>냉기</span>' 카드 1장으로 교체"}, {n:2, t:"'-1' 카드 1장을 '+0 [치유 1 <span class='icon heal'>♥</span> 아군]' 카드 1장으로 교체"}, {n:3, t:"'+1 [치유 1 <span class='icon heal'>♥</span> 아군]' 카드 1장을 추가"}, {n:1, t:"'+1 <span class='icon poison'>중독</span>' 카드 1장을 추가"}, {n:1, t:"'+3' 카드 1장을 추가"}, {n:2, t:"'+1 <span class='icon curse'>저주</span>' 카드 1장을 추가"}]
+    };
+
+    let currentSlot = localStorage.getItem('jotl_slot_v17') || "기본 파티";
+    let isSyncing = false;
+    let unlockedItems = [];
+    let partyItemCounts = {};
+
+    function calcLevel() {
+        const xp = parseInt(document.getElementById('xp').value) || 0;
+        let lv = 1;
+        const th = [0, 45, 95, 150, 210, 275, 345, 420, 500];
+        th.forEach((v, i) => { if(xp >= v) lv = i + 1; });
+        document.getElementById('lv').value = lv > 9 ? 9 : lv;
+        saveData();
+    }
+
+    function renderEmptyUI(job) {
+        const p = document.getElementById('perks');
+        const bg = document.getElementById('battleGoals');
+        p.innerHTML = ''; bg.innerHTML = '';
+        D[job].forEach((o, i) => {
+            let chks = '';
+            for(let j=0; j<o.n; j++) chks += `<input type="checkbox" class="p-chk" id="p_${i}_${j}" onchange="saveData()">`;
+            p.innerHTML += `<div class="perk-item"><div class="chk-group">${chks}</div><span>${o.t}</span></div>`;
+        });
+        for(let i=0; i<6; i++) {
+            let chks = '';
+            for(let j=0; j<3; j++) chks += `<input type="checkbox" class="circle-chk" id="b_${i}_${j}" onchange="saveData()">`;
+            bg.innerHTML += `<div style="border:1px solid #ddd; padding:8px; display:flex; align-items:center; gap:5px; justify-content:center;"><span>✔</span>${chks}</div>`;
+        }
+    }
+
+function renderShop() {
+    const shopGrid = document.getElementById('shopGrid');
+    if (!shopGrid) return;
+    shopGrid.innerHTML = '';
+
+    Object.entries(itemDB).forEach(([num, item]) => {
+        const itemNum = Number(num);
+        // 해금 여부 체크
+        if (!unlockedItems.includes(itemNum)) return;
+
+        const [id, name, price, stock] = item;
+        
+        // 1. 소유주 명단 준비
+        const owners = (window.currentItemOwners && window.currentItemOwners[itemNum]) || [];
+        const ownerTags = owners.map(name => `<span class="owner-tag tag-${name}">${name}</span>`).join("");
+
+        // 2. 재고 계산
+        const currentCount = partyItemCounts[itemNum] || 0;
+        const remainingStock = stock - currentCount;
+
+        // 3. 아이템 카드 생성
+        const itemDiv = document.createElement('div');
+        itemDiv.className = `shop-item ${remainingStock <= 0 ? 'sold-out' : ''}`;
+        
+        itemDiv.innerHTML = `
+            <div>
+                <b>#${num} ${name}</b>
+                <div class="price">${price}G</div>
+            </div>
+            <div class="stock-owner-line">
+                <span>재고: ${remainingStock}</span>
+                ${owners.length > 0 ? `<div class="owner-tag-group"> | ${ownerTags}</div>` : ""}
+            </div>
+            ${remainingStock <= 0 ? '<span class="sold-out-badge">품절</span>' : ''}
+        `;
+
+        if (remainingStock > 0) {
+            itemDiv.onclick = () => quickBuy(itemNum); // 기존 모달 함수 연결
+        }
+
+        shopGrid.appendChild(itemDiv);
+    });
+}
+
+  // 모달 닫기 함수
+function closeModal() {
+    document.getElementById('buyModal').style.display = 'none';
+}
+
+function quickBuy(num) {
+    const item = itemDB[num];
+    const gold = parseInt(document.getElementById('gold').value) || 0;
+    const modal = document.getElementById('buyModal');
+    const title = document.getElementById('modalTitle');
+    const btnBuy = document.getElementById('btnBuy');
+    const btnReward = document.getElementById('btnReward');
+
+    // 모달 텍스트 설정
+    title.innerHTML = `<span style="color:#bc6c25;">[#${num}] ${item[1]}</span><br>${item[2]} Gold`;
+    modal.style.display = 'flex';
+
+    // 1. 골드 구매 버튼 클릭 시
+    btnBuy.onclick = () => {
+        if (gold < item[2]) {
+            alert("골드가 부족합니다!");
+            return;
+        }
+        document.getElementById('gold').value = gold - item[2];
+        addMemoItem(num, item[1], false);
+        closeModal();
+    };
+
+    // 2. 보상 획득 버튼 클릭 시
+    btnReward.onclick = () => {
+        addMemoItem(num, item[1], true);
+        closeModal();
+    };
+}
+
+function addMemoItem(num, itemName, isReward) {
+    const memo = document.getElementById('memo');
+    const suffix = isReward ? "보" : "";
+    const newEntry = `[#${num}${suffix}]`;
+
+    let currentContent = memo.value;
+    const existingItems = currentContent.match(/\[#\d+(?:보)?\]/g) || [];
+    
+    // 아이템 번호와 그 뒤에 붙은 이름 텍스트까지 싹 제거해서 순수 메모만 남김
+    let personalMemo = currentContent.replace(/\[#\d+(?:보)?\][^\[\n]*/g, "").trim();
+
+    existingItems.push(newEntry);
+
+    // 가로로 나열된 아이템 번호들 + 개인 메모
+    memo.value = existingItems.join(" ") + (personalMemo ? "\n\n" + personalMemo : "");
+
+    saveData();
+}
+
+// 메모장 기록을 전담하는 보조 함수 (새로 추가)
+function addMemoItem(num, itemName, isReward) {
+    const memo = document.getElementById('memo');
+    const suffix = isReward ? "(보)" : ""; // 보상일 경우 (보) 추가
+    const newEntry = `[#${num}] ${itemName}${suffix}`;
+    
+    memo.value += (memo.value ? "\n" : "") + newEntry;
+    saveData();
+}
+
+    function unlockItems() {
+        const val = document.getElementById('unlockInput').value.trim();
+        let toUnlock = [];
+        if (val.includes('-') || val.includes('~')) {
+            const parts = val.split(/[-~]/);
+            for(let i=parseInt(parts[0]); i<=parseInt(parts[1]); i++) if(itemDB[i]) toUnlock.push(i);
+        } else {
+            const n = parseInt(val); if(itemDB[n]) toUnlock.push(n);
+        }
+        if(toUnlock.length > 0) {
+            unlockedItems = Array.from(new Set([...unlockedItems, ...toUnlock]));
+            db.ref(`jotl_v17/slots/${currentSlot}/shared/unlockedItems`).set(unlockedItems).then(() => {
+                document.getElementById('unlockInput').value = '';
+            });
+        }
+    }
+
+    function renderInventory() {
+    const invGrid = document.getElementById('inventoryGrid');
+    const memoValue = document.getElementById('memo').value;
+    const itemMatches = memoValue.match(/\[#\d+(?:보)?\]/g) || [];
+    
+    // 번호순 정렬 (숫자만 추출해서 비교)
+    itemMatches.sort((a, b) => {
+        const numA = parseInt(a.replace(/[^0-9]/g, ""));
+        const numB = parseInt(b.replace(/[^0-9]/g, ""));
+        return numA - numB;
+    });
+
+    invGrid.innerHTML = '';
+    itemMatches.forEach(tag => {
+        const num = parseInt(tag.replace(/[^0-9]/g, ""));
+        const isReward = tag.includes("보");
+        const item = itemDB[num];
+        if(!item) return;
+
+        const div = document.createElement('div');
+        div.className = 'inv-item';
+        div.innerHTML = `
+            <b>#${num}${isReward?'(보)':''}</b> ${item[1]}
+            <button class="inv-btn btn-trade" onclick="tradeItem('${tag}', '${item[1]}')">⇄</button>
+            <button class="inv-btn btn-sell" onclick="sellItem('${tag}', ${num})">S</button>
+        `;
+        invGrid.appendChild(div);
+    });
+}
+
+    // 아이템 판매 함수 (50% 올림 환불)
+function sellItem(tag, num) {
+    const item = itemDB[num];
+    const sellPrice = Math.ceil(item[2] / 2);
+    if (!confirm(`${item[1]}을(를) ${sellPrice}G에 판매하시겠습니까?`)) return;
+
+    // 1. 골드 추가
+    const goldInput = document.getElementById('gold');
+    goldInput.value = (parseInt(goldInput.value) || 0) + sellPrice;
+
+    // 2. 메모장에서 해당 태그 삭제
+    const memo = document.getElementById('memo');
+    memo.value = memo.value.replace(tag, "").replace(/\s\s+/g, ' ').trim();
+    
+    saveData();
+    renderInventory();
+}
+
+function closeTradeModal() {
+    document.getElementById('tradeModal').style.display = 'none';
+}
+
+function tradeItem(tag, itemName) {
+    const jobs = ["도끼투척수", "적위병", "철거전문가", "공허감시자"];
+    const currentJob = document.getElementById('job').value;
+    const targets = jobs.filter(j => j !== currentJob); // 내 직업 제외
+    
+    const modal = document.getElementById('tradeModal');
+    const btnGroup = document.getElementById('tradeBtnGroup');
+    
+    // 이전 버튼들 초기화
+    btnGroup.innerHTML = '';
+    modal.style.display = 'flex';
+
+    // 대상 직업별로 버튼 생성
+    targets.forEach(targetJob => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-modal';
+        btn.style.background = '#3498db';
+        btn.style.color = 'white';
+        btn.innerText = targetJob;
+        
+        btn.onclick = () => {
+            if (confirm(`[${itemName}]을(를) ${targetJob}에게 전송하시겠습니까?`)) {
+                executeTrade(tag, targetJob);
+                closeTradeModal();
+            }
+        };
+        btnGroup.appendChild(btn);
+    });
+}
+
+function executeTrade(tag, targetJob) {
+    const currentJob = document.getElementById('job').value;
+    const memoInput = document.getElementById('memo');
+    
+    // 1. 내 데이터와 상대방 데이터를 동시에 처리하기 위해 DB 참조 생성
+    const myRef = db.ref(`jotl_v17/slots/${currentSlot}/jobs/${currentJob}/memo`);
+    const targetRef = db.ref(`jotl_v17/slots/${currentSlot}/jobs/${targetJob}/memo`);
+
+    // 2. 내 메모장에서 먼저 지우기 (화면 즉시 반영)
+    const escapedTag = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const reg = new RegExp(escapedTag, 'g');
+    const updatedMyMemo = memoInput.value.replace(reg, "").replace(/\s\s+/g, ' ').trim();
+    
+    // 로컬 화면 미리 업데이트
+    memoInput.value = updatedMyMemo;
+
+    // 3. 서버 데이터 업데이트 (내 것 지우고, 상대 것 추가)
+    myRef.set(updatedMyMemo).then(() => {
+        return targetRef.once('value');
+    }).then(snap => {
+        const oldTargetMemo = snap.val() || "";
+        const updatedTargetMemo = (oldTargetMemo.trim() ? oldTargetMemo.trim() + " " : "") + tag;
+        
+        return targetRef.set(updatedTargetMemo);
+    }).then(() => {
+        alert(`${targetJob}에게 전송 완료!`);
+        // 최종적으로 화면 동기화
+        renderInventory();
+    }).catch(err => {
+        console.error("거래 중 오류 발생:", err);
+        alert("거래 실패. 다시 시도해주세요.");
+    });
+}
+function startSync() {
+    const job = document.getElementById('job').value;
+    renderEmptyUI(job);
+    
+    db.ref(`jotl_v17/slots/${currentSlot}`).on('value', snap => {
+        isSyncing = true;
+        const data = snap.val() || {};
+        const jobData = (data.jobs && data.jobs[job]) ? data.jobs[job] : {};
+        
+        // 내 데이터 반영
+        document.getElementById('charName').value = jobData.name || "";
+        document.getElementById('xp').value = jobData.xp || 0;
+        document.getElementById('lv').value = jobData.lv || 1;
+        document.getElementById('gold').value = jobData.gold || 0;
+
+        // 메모장 아이템 정렬 로직
+        let rawMemo = jobData.memo || "";
+        const itemParts = rawMemo.match(/\[#\d+(?:보)?\]/g) || [];
+        let cleanMemo = rawMemo.replace(/\[#\d+(?:보)?\][^\[\n]*/g, "").trim();
+        if (itemParts.length > 0) {
+            document.getElementById('memo').value = itemParts.join(" ") + (cleanMemo ? "\n\n" + cleanMemo : "");
+        } else {
+            document.getElementById('memo').value = rawMemo;
+        }
+
+        const checks = jobData.checks || {};
+        document.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = checks[c.id] || false);
+        
+        // --- [여기서부터 소유주 분석 로직] ---
+        partyItemCounts = {};
+        window.currentItemOwners = {}; 
+
+        if(data.jobs) {
+            Object.entries(data.jobs).forEach(([jobName, j]) => {
+                const shortName = jobName.substring(0, 2);
+                const found = (j.memo || "").match(/\[#\d+(?:보)?\]/g);
+                if(found) {
+                    found.forEach(f => {
+                        const n = parseInt(f.replace(/[^0-9]/g, ""));
+                        // 수량 카운트
+                        partyItemCounts[n] = (partyItemCounts[n] || 0) + 1;
+                        // 소유주 명단 추가
+                        if (!window.currentItemOwners[n]) window.currentItemOwners[n] = [];
+                        if (!window.currentItemOwners[n].includes(shortName)) {
+                            window.currentItemOwners[n].push(shortName);
+                        }
+                    });
+                }
+            });
+        }
+        // --- [분석 끝] ---
+
+        unlockedItems = (data.shared && data.shared.unlockedItems) || [1,2,3,4,5,6,7,8,9,10,11,12,13];
+        
+        // 화면 갱신 순서: 샵과 인벤토리를 차례로 그림
+        renderShop();
+        renderInventory();
+
+        document.getElementById('mapProgress').value = (data.shared && data.shared.mapProgress) || "";
+        document.getElementById('title').innerText = document.getElementById('job').selectedOptions[0].text + " (실시간)";
+        
+        isSyncing = false;
+    });
+
+    // 파티 리스트 동기화 (슬롯 선택)
+    db.ref('jotl_v17/party_list').on('value', snap => {
+        const list = snap.val() || ["기본 파티"];
+        document.getElementById('slotSelect').innerHTML = list.map(s => 
+            `<option value="${s}" ${s===currentSlot?'selected':''}>${s}</option>`
+        ).join('');
+    });
+}
+
+    function saveData() {
+        if(isSyncing) return;
+        const job = document.getElementById('job').value;
+        const checks = {};
+        document.querySelectorAll('input[type="checkbox"]').forEach(c => checks[c.id] = c.checked);
+        const data = {
+            name: document.getElementById('charName').value, lv: document.getElementById('lv').value,
+            xp: document.getElementById('xp').value, gold: document.getElementById('gold').value,
+            memo: document.getElementById('memo').value, checks: checks
+        };
+        db.ref(`jotl_v17/slots/${currentSlot}/jobs/${job}`).set(data);
+        db.ref(`jotl_v17/slots/${currentSlot}/shared/mapProgress`).set(document.getElementById('mapProgress').value);
+
+        renderInventory();
+    }
+
+    function changeJob() { db.ref(`jotl_v17/slots/${currentSlot}`).off(); startSync(); }
+    function switchSlot(val) { currentSlot = val; localStorage.setItem('jotl_slot_v17', currentSlot); db.ref(`jotl_v17/slots/${currentSlot}`).off(); startSync(); }
+    function addNewParty() {
+        const n = prompt("새 파티 이름:");
+        if(n) {
+            db.ref('jotl_v17/party_list').once('value', snap => {
+                const list = snap.val() || ["기본 파티"];
+                if(!list.includes(n)) { list.push(n); db.ref('jotl_v17/party_list').set(list); switchSlot(n); }
+            });
+        }
+    }
+
+function deleteParty() {
+        if(confirm(`현재 파티 '${currentSlot}'의 모든 데이터를 영구 삭제하시겠습니까?`)) {
+            // 1. 해당 슬롯의 상세 데이터 삭제
+            db.ref(`jotl_v17/slots/${currentSlot}`).remove().then(() => {
+                // 2. 전체 파티 목록(party_list)에서도 이름 제거
+                db.ref('jotl_v17/party_list').once('value', snap => {
+                    let list = snap.val() || ["기본 파티"];
+                    list = list.filter(s => s !== currentSlot);
+                    
+                    // 만약 모든 파티를 지웠다면 다시 '기본 파티' 생성
+                    if (list.length === 0) list = ["기본 파티"];
+                    
+                    db.ref('jotl_v17/party_list').set(list).then(() => {
+                        alert("삭제가 완료되었습니다.");
+                        // 첫 번째 파티로 이동하며 새로고침
+                        switchSlot(list[0]);
+                        location.reload(); 
+                    });
+                });
+            }).catch(error => {
+                alert("삭제 중 오류 발생: " + error.message);
+            });
+        }
+    }
+
+    function manualReset() {
+        if(confirm("캐릭터 초기화?")) {
+            db.ref(`jotl_v17/slots/${currentSlot}/jobs/${document.getElementById('job').value}`).remove();
+        }
+    }
+
+    function exportData() {
+        db.ref('jotl_v17').once('value', snap => {
+            const blob = new Blob([JSON.stringify(snap.val())], {type: 'application/json'});
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+            a.download = `jotl_backup_${new Date().getTime()}.json`; a.click();
+        });
+    }
+
+    function importData(input) {
+        const fr = new FileReader();
+        fr.onload = () => { db.ref('jotl_v17').set(JSON.parse(fr.result)).then(() => location.reload()); };
+        fr.readAsText(input.files[0]);
+    }
+
+window.onload = () => { 
+    startSync(); 
+
+    // 각 입력창의 값이 바뀔 때마다 실행될 로직
+    ['charName','gold','memo','mapProgress','xp'].forEach(id => {
+        document.getElementById(id).onchange = () => {
+            saveData();         // 데이터를 DB에 저장
+            renderInventory();  // 인벤토리 화면 갱신 (추가된 부분)
+        };
+    });
+
+    // 페이지 로드 시 첫 렌더링
+    setTimeout(renderInventory, 1000); // DB 데이터를 불러온 뒤 그려지도록 1초 여유
+};
+</script>
+<div id="tradeModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-title">전송할 대상을 선택하세요</div>
+        <div id="tradeBtnGroup" class="modal-btns">
+            </div>
+        <button onclick="closeTradeModal()" class="btn-modal btn-cancel" style="margin-top:10px;">취소</button>
+    </div>
+</div>
+</body>
+</html>
