@@ -24,6 +24,22 @@
         .sect { background: #444; color: white; padding: 4px 10px; margin: 15px 0 8px; font-weight: bold; font-size: 13px; }
         .sect-share { background: #d35400; } 
 
+        /* 판매 팝업 배경 */
+#sellModal {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6); display: none; /* 평소엔 숨김 */
+    align-items: center; justify-content: center; z-index: 2000;
+}
+/* 판매 팝업 박스 */
+.sell-box {
+    background: #fff5e6; border: 3px solid #d32f2f; border-radius: 12px;
+    padding: 20px; width: 260px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.sell-title { font-weight: bold; color: #d32f2f; margin-bottom: 15px; font-size: 16px; }
+.sell-btns { display: flex; gap: 10px; justify-content: center; }
+.btn-sell-confirm { background: #d32f2f; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+.btn-sell-cancel { background: #757575; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+
         /* 구매 선택 모달 스타일 */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 1000; }
 .modal-content { background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 320px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
@@ -90,6 +106,7 @@
     background: #fdf6e3; 
     border: 1px inset #ccc; 
     border-radius: 5px; 
+    margin-bottom: 10px;
 }
 .shop-item { 
     background: white; 
@@ -388,22 +405,62 @@ function addMemoItem(num, itemName, isReward) {
     });
 }
 
-    // 아이템 판매 함수 (50% 올림 환불)
+let pendingSell = null; 
+
+// 1. 판매 버튼 눌렀을 때 (인벤토리에서 S 버튼 클릭)
 function sellItem(tag, num) {
     const item = itemDB[num];
-    const sellPrice = Math.ceil(item[2] / 2);
-    if (!confirm(`${item[1]}을(를) ${sellPrice}G에 판매하시겠습니까?`)) return;
+    if (!item) return;
 
-    // 1. 골드 추가
-    const goldInput = document.getElementById('gold');
-    goldInput.value = (parseInt(goldInput.value) || 0) + sellPrice;
-
-    // 2. 메모장에서 해당 태그 삭제
-    const memo = document.getElementById('memo');
-    memo.value = memo.value.replace(tag, "").replace(/\s\s+/g, ' ').trim();
+    pendingSell = { tag, num }; // 판매할 태그([#1])와 번호 저장
     
-    saveData();
-    renderInventory();
+    const sellPrice = Math.floor(item[2] / 2); // 가격 절반 계산
+    const itemName = item[1];
+
+    // 팝업창 메시지 업데이트
+    const msgElement = document.getElementById('sellPriceMsg');
+    if (msgElement) {
+        msgElement.innerHTML = 
+            `<span style="color:#d32f2f; font-weight:bold;">${itemName}</span><br>` +
+            `판매 가격: <span style="color:#5d4037; font-weight:bold;">${sellPrice} Gold</span>`;
+    }
+    
+    document.getElementById('sellModal').style.display = 'flex';
+}
+
+// 2. 팝업에서 [판매하기] 최종 클릭 시
+function confirmSell() {
+    if (pendingSell) {
+        const { tag, num } = pendingSell;
+        const item = itemDB[num];
+        const sellPrice = Math.floor(item[2] / 2);
+
+        // 골드 추가
+        const goldInput = document.getElementById('gold');
+        const currentGold = parseInt(goldInput.value) || 0;
+        goldInput.value = currentGold + sellPrice;
+
+        // 메모장에서 아이템 태그 삭제 로직
+        const memoInput = document.getElementById('memo');
+        // 특수문자([, ]) 처리를 위해 정규식 이스케이프
+        const escapedTag = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const reg = new RegExp(escapedTag, 'g');
+        
+        // 해당 아이템 태그를 지우고 공백 정리
+        memoInput.value = memoInput.value.replace(reg, "").replace(/\s\s+/g, ' ').trim();
+
+        // 저장 및 화면 갱신
+        saveData();
+        renderInventory(); 
+        closeSellModal();
+        
+        alert(`${item[1]}을(를) 판매하고 ${sellPrice}G를 받았습니다.`);
+    }
+}
+
+function closeSellModal() {
+    document.getElementById('sellModal').style.display = 'none';
+    pendingSell = null;
 }
 
 function closeTradeModal() {
@@ -640,6 +697,19 @@ window.onload = () => {
         <div id="tradeBtnGroup" class="modal-btns">
             </div>
         <button onclick="closeTradeModal()" class="btn-modal btn-cancel" style="margin-top:10px;">취소</button>
+    </div>
+</div>
+
+<div id="sellModal">
+    <div class="sell-box">
+        <div class="sell-title">💰 아이템 판매</div>
+        
+        <div id="sellPriceMsg" style="margin-bottom:15px; font-size:14px; line-height:1.5;"></div>
+        
+        <div class="sell-btns">
+            <button id="confirmSellBtn" class="btn-sell-confirm" onclick="confirmSell()">판매하기</button>
+            <button onclick="closeSellModal()" class="btn-sell-cancel">취소</button>
+        </div>
     </div>
 </div>
 </body>
