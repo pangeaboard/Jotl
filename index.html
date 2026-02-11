@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>사자의 턱 디지털 시트 - 복원 완료</title>
+    <title>글룸헤이븐-사자의 턱</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <style>
@@ -139,6 +139,60 @@ details[open] summary::before { content: '▼ '; transform: rotate(0deg); }
 
         textarea { width: 100%; height: 80px; margin-top: 5px; border: 1px solid #ccc; padding: 8px; font-size: 12px; resize: vertical; }
         .backup-bar { display: flex; gap: 5px; margin-top: 15px; border-top: 1px solid #ddd; padding-top: 10px; }
+
+/* 도시 이벤트 버튼 스타일 */
+.event-btn {
+    width: 38px; height: 38px; 
+    border-radius: 4px; 
+    border: 1px solid #444;
+    font-size: 13px; font-weight: bold; 
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center;
+}
+.event-btn.active { 
+    background: #d4af37; /* 사자의 턱 시그니처 골드 */
+    color: #000; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+.event-btn.active:hover { background: #f1c40f; transform: translateY(-2px); }
+.event-btn.removed { 
+    background: #222; 
+    color: #444; 
+    border: 1px dashed #333;
+    font-size: 11px;
+}
+
+
+
+
+/* 이벤트 카드 스타일 */
+.event-card-new {
+    aspect-ratio: 1/1;
+    background: #2c2c2c;
+    border: 1px solid #444;
+    color: #d4af37;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.event-card-new:hover {
+    background: #d4af37;
+    color: black;
+    transform: translateY(-2px);
+}
+
+.event-card-new.removed {
+    background: #111;
+    color: #444;
+    border: 1px dashed #333;
+    font-size: 11px;
+}
+
     </style>
 </head>
 <body>
@@ -228,6 +282,45 @@ details[open] summary::before { content: '▼ '; transform: rotate(0deg); }
         </div>
 </details>
 
+<details style="margin-top:20px;">
+    <summary class="sect" style="cursor:pointer; outline:none; list-style:none;">
+        🎴 도시 이벤트 비서 <span id="eventCountText" style="font-size:0.8rem; margin-left:10px; color:#ffd700;">(8장)</span>
+		<button onclick="unlockEventManual(event)" style="background:#444; color:#fff; border:1px solid #666; border-radius:3px; font-size:10px; padding:2px 6px; cursor:pointer; margin-left:10px;">+ 카드 추가</button>
+    </summary>
+    
+    <div style="width:100%; height:4px; background:#d4af37; opacity:0.5;"></div>
+
+    <div id="eventManager" style="padding:15px; background:#333;">
+        </div>
+</details>
+
+<div id="eventModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:1000; align-items:center; justify-content:center;" onclick="closeEventModal()">
+    <div style="background:#222; padding:20px; border:2px solid #d4af37; border-radius:8px; text-align:center; max-width:280px; width:85%;" onclick="event.stopPropagation()">
+        <h3 id="modalEventNum" style="color:#d4af37; margin-bottom:15px; font-size:1.2rem;">#-- 이벤트</h3>
+        <div style="display:grid; gap:12px;">
+            <button onclick="confirmEventAction('remove')" style="padding:15px; background:#d4af37; color:black; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:1rem;">❌ 소멸 (제거)</button>
+            <button onclick="confirmEventAction('return')" style="padding:15px; background:#555; color:white; border:none; border-radius:4px; font-weight:bold; cursor:pointer; font-size:1rem;">🔄 순환 (유지)</button>
+        </div>
+        <button onclick="closeEventModal()" style="margin-top:15px; background:transparent; color:#888; border:none; cursor:pointer; font-size:12px; text-decoration:underline;">창 닫기</button>
+    </div>
+</div>
+
+
+<div id="manualEventModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:1100; align-items:center; justify-content:center;" onclick="closeManualModal()">
+    <div style="background:#222; padding:20px; border:2px solid #ffd700; border-radius:8px; text-align:center; max-width:280px; width:85%;" onclick="event.stopPropagation()">
+        <h3 style="color:#ffd700; margin-bottom:15px; font-size:1.1rem;">🎴 새 이벤트 카드 추가</h3>
+        <p style="color:#888; font-size:12px; margin-bottom:15px;">추가할 카드 번호를 입력하세요.</p>
+        
+        <input type="number" id="manualEventInput" placeholder="00" 
+               style="width:80px; padding:10px; background:#333; border:1px solid #555; color:#ffd700; text-align:center; font-size:1.5rem; font-weight:bold; border-radius:4px; margin-bottom:20px; outline:none;">
+        
+        <div style="display:grid; gap:10px;">
+            <button onclick="confirmManualUnlock()" style="padding:12px; background:#ffd700; color:black; border:none; border-radius:4px; font-weight:bold; cursor:pointer;">확인</button>
+            <button onclick="closeManualModal()" style="padding:10px; background:transparent; color:#666; border:none; cursor:pointer; font-size:12px;">취소</button>
+        </div>
+    </div>
+</div>
+
     <div class="sect sect-share">시나리오 및 맵 진행 상황 (파티 공유)</div>
     <textarea id="mapProgress"></textarea>
 
@@ -316,6 +409,171 @@ details[open] summary::before { content: '▼ '; transform: rotate(0deg); }
         document.getElementById('lv').value = lv > 9 ? 9 : lv;
         saveData();
     }
+
+// 1. 시나리오별 해금될 카드 정의
+const eventUnlockDB = {
+    "2": ["09", "10"],
+    "9": ["11", "12"],
+    "15": ["13", "14", "15"]
+};
+
+let selectedEventNum = null; // 모달 제어를 위한 변수
+
+// 2. 이벤트 화면 렌더링 함수
+function renderEvents() {
+    const container = document.getElementById('eventManager');
+    if (!container) return;
+
+    const slot = typeof currentSlot !== 'undefined' ? currentSlot : 1;
+    db.ref(`jotl_v17/slots/${slot}/shared/events`).once('value').then(snap => {
+        let val = snap.val() || { active: "01,02,03,04,05,06,07,08", removed: "" };
+        const activeList = val.active.split(',').filter(s => s !== "").sort();
+        const removedList = val.removed ? val.removed.split(',').filter(s => s !== "").sort() : [];
+
+        // 장수 표기 업데이트
+        const countText = document.getElementById('eventCountText');
+        if (countText) countText.innerText = `(${activeList.length}장)`;
+
+        container.innerHTML = `
+            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:10px;">
+                ${activeList.map(num => `
+                    <div class="event-card-new" onclick="handleEventClick('${num}')">
+                        ${num}
+                    </div>
+                `).join('')}
+            </div>
+            
+            ${removedList.length > 0 ? `
+                <div style="margin-top:20px; padding-top:15px; border-top:1px solid #444;">
+                    <div style="color:#888; font-size:0.75rem; margin-bottom:10px; font-weight:bold;">🚫 소멸된 카드 (클릭 시 복구)</div>
+                    <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:6px; opacity:0.5;">
+                        ${removedList.map(num => `
+                            <div class="event-card-new removed" onclick="restoreEvent('${num}')" style="height:35px; font-size:11px;">
+                                ${num}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+        `;
+    });
+}
+
+// 3. 모달 제어 함수
+function handleEventClick(num) {
+    selectedEventNum = num;
+    const modalNumElem = document.getElementById('modalEventNum');
+    if (modalNumElem) modalNumElem.innerText = `#${num} 이벤트 결과`;
+    const modal = document.getElementById('eventModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeEventModal() {
+    const modal = document.getElementById('eventModal');
+    if (modal) modal.style.display = 'none';
+    selectedEventNum = null;
+}
+
+// 4. 이벤트 액션 확정
+function confirmEventAction(action) {
+    if (!selectedEventNum) return;
+    
+    const slot = typeof currentSlot !== 'undefined' ? currentSlot : 1;
+    const eventPath = `jotl_v17/slots/${slot}/shared/events`;
+
+    if (action === 'remove') {
+        db.ref(eventPath).once('value').then(snap => {
+            let data = snap.val() || { active: "", removed: "" };
+            let active = data.active.split(',').filter(s => s !== "" && s !== selectedEventNum);
+            let removed = [...new Set([...data.removed.split(','), selectedEventNum])].filter(s => s !== "");
+            return db.ref(eventPath).update({
+                active: active.sort().join(','),
+                removed: removed.sort().join(',')
+            });
+        }).then(() => {
+            closeEventModal();
+            renderEvents();
+        });
+    } else {
+        closeEventModal();
+    }
+}
+
+// 5. 소멸 카드 복구
+function restoreEvent(num) {
+    if (!confirm(`#${num} 카드를 다시 덱으로 복구할까요?`)) return;
+    const slot = typeof currentSlot !== 'undefined' ? currentSlot : 1;
+    const eventPath = `jotl_v17/slots/${slot}/shared/events`;
+
+    db.ref(eventPath).once('value').then(snap => {
+        let data = snap.val() || { active: "", removed: "" };
+        let removed = data.removed.split(',').filter(s => s !== "" && s !== num);
+        let active = [...new Set([...data.active.split(','), num])].filter(s => s !== "");
+        return db.ref(eventPath).update({
+            active: active.sort().join(','),
+            removed: removed.sort().join(',')
+        });
+    }).then(() => renderEvents());
+}
+
+// 모달 열기
+function unlockEventManual(e) {
+    if(e) { e.preventDefault(); e.stopPropagation(); }
+    document.getElementById('manualEventInput').value = ""; // 초기화
+    document.getElementById('manualEventModal').style.display = 'flex';
+    document.getElementById('manualEventInput').focus();
+}
+
+// 모달 닫기
+function closeManualModal() {
+    document.getElementById('manualEventModal').style.display = 'none';
+}
+
+// 입력 확인 및 로직 실행
+function confirmManualUnlock() {
+    const inputField = document.getElementById('manualEventInput');
+    const num = inputField.value.trim();
+    
+    if (!num) {
+        closeManualModal();
+        return;
+    }
+
+    // 숫자로 변환하여 범위 확인 (1~22)
+    const numInt = parseInt(num);
+    if (isNaN(numInt) || numInt < 1 || numInt > 22) {
+        alert("유효한 카드 번호가 아닙니다.\n(01번 ~ 22번 사이의 숫자만 입력 가능합니다.)");
+        inputField.value = "";
+        inputField.focus();
+        return;
+    }
+
+    // 두 자리 문자열로 변환 (예: 7 -> "07")
+    const formattedNum = numInt.toString().padStart(2, '0');
+    
+    const slot = typeof currentSlot !== 'undefined' ? currentSlot : 1;
+    const eventPath = `jotl_v17/slots/${slot}/shared/events`;
+
+    db.ref(eventPath).once('value').then(snap => {
+        let eData = snap.val() || { active: "01,02,03,04,05,06,07,08", removed: "" };
+        let active = eData.active.split(',').filter(s => s !== "");
+        
+        if (active.includes(formattedNum)) {
+            alert("이미 덱에 포함된 카드입니다.");
+            return;
+        }
+
+        let updatedActive = [...new Set([...active, formattedNum])];
+        return db.ref(eventPath).update({ 
+            active: updatedActive.sort().join(',') 
+        });
+    }).then(() => {
+        closeManualModal();
+        renderEvents();
+    }).catch(err => console.error("Manual Unlock Error:", err));
+}
+
+
 
    // 직업 선택 시 특혜 목록만 그려주는 함수
 function renderEmptyUI(job) {
@@ -523,33 +781,57 @@ function toggleScenario(num, currentState, allStatus) {
 
     let newStatus = { ...allStatus };
 
-    if (currentState === "open") {
+   if (currentState === "open") {
         // [시나리오 완료]
         newStatus[num] = "done";
         if (data.next) {
             data.next.forEach(n => { if (!newStatus[n]) newStatus[n] = "open"; });
         }
 
-        // 아이템 추가 로직
+        // 1. 아이템 추가
         db.ref(shopPath).once('value').then(snap => {
             let shopArray = String(snap.val() || "").split(',').map(s => s.trim()).filter(s => s !== "");
-            if (data.items) {
-                shopArray = [...new Set([...shopArray, ...data.items])];
-            }
+            if (data.items) shopArray = [...new Set([...shopArray, ...data.items])];
             return db.ref(shopPath).set(shopArray.sort((a,b) => a-b).join(','));
+        }).then(() => {
+            // 2. 도시 이벤트 추가
+            if (eventUnlockDB[num]) {
+                const eventPath = `jotl_v17/slots/${slot}/shared/events`;
+                return db.ref(eventPath).once('value').then(snap => {
+                    let eData = snap.val() || { active: "01,02,03,04,05,06,07,08", removed: "" };
+                    let active = eData.active.split(',').filter(s => s !== "");
+                    let updatedActive = [...new Set([...active, ...eventUnlockDB[num]])];
+                    return db.ref(eventPath).update({ active: updatedActive.sort().join(',') });
+                });
+            }
         }).then(() => saveAndRefresh(newStatus));
 
     } else {
-        // [시나리오 취소] - "open"으로 되돌림
+        // [시나리오 취소]
         newStatus[num] = "open";
-
-        // 아이템 제거 로직 (4번을 끄면 4번이 줬던 아이템들만 쏙 제거)
+	if (data.next) {
+            data.next.forEach(n => {
+                // 이미 완료(done)된 시나리오는 건드리지 않고, '열림(open)' 상태인 것만 다시 '잠금(locked)'
+                if (newStatus[n] === "open") {
+                    delete newStatus[n]; // 또는 newStatus[n] = "locked"; (데이터 구조에 맞게 선택)
+                }
+            });
+        }	
+        // 1. 아이템 제거
         db.ref(shopPath).once('value').then(snap => {
             let shopArray = String(snap.val() || "").split(',').map(s => s.trim()).filter(s => s !== "");
-            if (data.items) {
-                shopArray = shopArray.filter(item => !data.items.includes(item));
-            }
+            if (data.items) shopArray = shopArray.filter(item => !data.items.includes(item));
             return db.ref(shopPath).set(shopArray.sort((a,b) => a-b).join(','));
+        }).then(() => {
+            // 2. 도시 이벤트 제거 (취소 시)
+            if (eventUnlockDB[num]) {
+                const eventPath = `jotl_v17/slots/${slot}/shared/events`;
+                return db.ref(eventPath).once('value').then(snap => {
+                    let eData = snap.val() || { active: "", removed: "" };
+                    let active = eData.active.split(',').filter(s => s !== "" && !eventUnlockDB[num].includes(s));
+                    return db.ref(eventPath).update({ active: active.sort().join(',') });
+                });
+            }
         }).then(() => saveAndRefresh(newStatus));
     }
 
@@ -823,6 +1105,8 @@ function startSync() {
         const jobData = (data.jobs && data.jobs[job]) ? data.jobs[job] : {};
 
      renderScenarios();
+if (typeof renderShop === 'function') renderShop(); 
+        if (typeof renderEvents === 'function') renderEvents();
 
 document.getElementById('gold').value = jobData.gold || 0;
 document.getElementById('perkPointsDisplay').innerText = jobData.perkPoints || 0; // 추가
@@ -1006,4 +1290,3 @@ window.onload = () => {
 </div>
 </body>
 </html>
-
